@@ -155,8 +155,10 @@ modules:
       - -DMOLD_USE_SYSTEM_MIMALLOC=ON
       - -DZLIB_INCLUDE_DIR=/usr/lib/sdk/musl/include # wrong detection of zlib.h adds -I/usr/include
     post-install:
-      - patchelf --add-rpath ${FLATPAK_DEST}/lib:${FLATPAK_DEST}/${FLATPAK_ARCH}-linux-musl/lib
-        ${FLATPAK_DEST}/{bin/mold,lib/mold/mold-wrapper.so}
+      # TODO: stripping after patchelf breaks executable
+     #- patchelf --add-rpath ${FLATPAK_DEST}/lib:${FLATPAK_DEST}/${FLATPAK_ARCH}-linux-musl/lib
+     #  ${FLATPAK_DEST}/{bin/mold,lib/mold/mold-wrapper.so}
+      - ln -s ../${FLATPAK_ARCH}-linux-musl/lib/libgcc_s.so.1 -t ${FLATPAK_DEST}/lib/
     sources:
       - type: archive
         url: https://github.com/rui314/mold/archive/v1.4.1/mold-1.4.1.tar.gz
