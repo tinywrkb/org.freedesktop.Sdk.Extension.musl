@@ -11,10 +11,20 @@ build-options:
   ldflags: -L/usr/lib/sdk/musl/lib
   prefix: /usr/lib/sdk/musl
   libdir: /usr/lib/sdk/musl/lib
-  prepend-path: /usr/lib/sdk/musl/musl-ccache
+  prepend-path: /usr/lib/sdk/musl/musl-ccache:/usr/lib/sdk/musl/bin
   prepend-ld-library-path: /usr/lib/sdk/musl/lib
   prepend-pkg-config-path: /usr/lib/sdk/musl/lib/pkgconfig
   strip: true
+x-musl-shared-build-options: &musl-shared-build-options
+  env: &musl-toolchain-environment
+    - CC=x86_64-linux-musl-gcc
+    - CXX=x86_64-linux-musl-g++
+x-musl-static-build-options: &musl-static-build-options
+  cflags: -static
+  cxxflags: -static
+  ldflags: -static
+  env: *musl-toolchain-environment
+
 modules:
   - name: prepare-ccache
     buildsystem: simple
@@ -100,6 +110,7 @@ modules:
         path: gcc-musl-ldso-path.patch
     cleanup:
       - '*'
+
   - name: musl-static
     build-options: *musl_build_opt
     no-autogen: true
@@ -114,3 +125,149 @@ modules:
       # fix dynamic linker symlink
       - ln -sf ${FLATPAK_DEST}/${FLATPAK_ARCH}-linux-musl/lib/{libc.so,ld-musl-${FLATPAK_ARCH}.so.1}
     sources: *musl_sources
+
+  - name: musl-utils
+    buildsystem: simple
+    build-commands:
+      - ln -s ../${FLATPAK_ARCH}-linux-musl/lib/libc.so ${FLATPAK_DEST}/bin/x86_64-linux-musl-ldd
+
+  - name: patchelf-static
+    build-options: *musl-static-build-options
+    sources:
+      - type: archive
+        url: https://github.com/NixOS/patchelf/archive/0.15.0.tar.gz
+        sha256: 5d1eda9bad4439bb9c0a87fcba198d7c0d372f361e77de41d68d6308062e5000
+        x-checker-data:
+          type: anitya
+          project-id: 2598
+          stable-only: true
+          url-template: https://github.com/NixOS/patchelf/archive/$version.tar.gz
+
+  - name: mold-static
+    build-options: *musl-shared-build-options
+    buildsystem: cmake-ninja
+    config-opts:
+      # NOTE: Release buildtype is broken with 1.4.1
+      - -DCMAKE_BUILD_TYPE=MinSizeRel
+      - -DMOLD_USE_MOLD=OFF
+      - -DMOLD_MOSTLY_STATIC=ON
+      - -DMOLD_USE_SYSTEM_TBB=ON
+      - -DMOLD_USE_SYSTEM_MIMALLOC=ON
+      - -DZLIB_INCLUDE_DIR=/usr/lib/sdk/musl/include # wrong detection of zlib.h adds -I/usr/include
+    post-install:
+      - patchelf --add-rpath ${FLATPAK_DEST}/lib:${FLATPAK_DEST}/${FLATPAK_ARCH}-linux-musl/lib
+        ${FLATPAK_DEST}/{bin/mold,lib/mold/mold-wrapper.so}
+    sources:
+      - type: archive
+        url: https://github.com/rui314/mold/archive/v1.4.1/mold-1.4.1.tar.gz
+        sha256: 394036d299c50f936ff77ce9c6cf44a5b24bfcabf65ae7db9679f89c11a70b3f
+        x-checker-data:
+          type: anitya
+          project-id: 241732
+          stable-only: true
+          versions:
+            '>': 1.4.1
+          url-template: https://github.com/rui314/mold/archive/v$version/mold-$version.tar.gz
+      - type: shell
+        commands:
+          - sed -i '/target_compile_definitions(mimalloc/d' CMakeLists.txt
+    modules:
+      - name: mimalloc-static
+        build-options: *musl-static-build-options
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DMI_BUILD_SHARED=OFF
+          - -DMI_BUILD_OBJECT=OFF
+          - -DMI_BUILD_TESTS=OFF
+          - -DMI_INSTALL_TOPLEVEL=ON
+          - -DMI_LIBPTHREAD=/usr/lib/sdk/musl/x86_64-linux-musl/lib/libpthread.a
+          - -DMI_LIBRT=/usr/lib/sdk/musl/x86_64-linux-musl/lib/librt.a
+          - -DMI_LIBATOMIC=/usr/lib/sdk/musl/x86_64-linux-musl/lib/libatomic.a
+        sources:
+          - type: archive
+            url: https://github.com/microsoft/mimalloc/archive/v2.0.6/mimalloc-2.0.6.tar.gz
+            sha256: 9f05c94cc2b017ed13698834ac2a3567b6339a8bde27640df5a1581d49d05ce5
+            x-checker-data:
+              type: anitya
+              project-id: 233872
+              stable-only: true
+              url-template: https://github.com/microsoft/mimalloc/archive/v$version/mimalloc-$version.tar.gz
+        cleanup:
+          - '*'
+      - name: openssl-static
+        build-options: *musl-static-build-options
+        config-opts:
+          - --libdir=lib
+          - --openssldir=/etc/ssl
+          - -static
+          - no-ssl3-method
+          - enable-ec_nistp_64_gcc_128
+          - linux-x86_64
+          - -Wa,--noexecstack
+        install-rule: install_sw
+        sources:
+          - type: archive
+            url: https://www.openssl.org/source/openssl-1.1.1q.tar.gz
+            sha256: d7939ce614029cdff0b6c20f0e2e5703158a489a72b2507b8bd51bf8c8fd10ca
+            x-checker-data:
+              type: anitya
+              project-id: 2566
+              stable-only: true
+              versions:
+                <: 2.0.0
+              version-scheme: semantic
+              url-template: https://www.openssl.org/source/openssl-$version.tar.gz
+          - type: patch
+            # https://github.com/openssl/openssl/issues/14574
+            path: openssl-static-threads.patch
+            options:
+              - --reverse
+          - type: shell
+            commands:
+              - ln -s {C,c}onfigure
+        cleanup:
+          - '*'
+      - name: tbb-static
+        build-options: *musl-static-build-options
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DCMAKE_BUILD_TYPE=MinSizeRel
+          - -DTBB_TEST=OFF
+          - -DTBB_EXAMPLES=OFF
+          - -DTBB_STRICT=OFF
+          - -DBUILD_SHARED_LIBS=OFF
+          - -DTBB_DISABLE_HWLOC_AUTOMATIC_SEARCH=ON
+        post-install:
+          # fix generated TBBTargets.cmake when building static libs
+          - sed -i '/INTERFACE_LINK_LIBRARIES.*Threads::Threads/d' ${FLATPAK_DEST}/lib/cmake/TBB/TBBTargets.cmake
+        sources: &tbb-sources
+          - type: archive
+            url: https://github.com/oneapi-src/oneTBB/archive/a748475d7a8b87be0067cca6850b37e64466e101/oneTBB-.tar.gz
+            sha256: 0bad36a645ca00502e27901d3c8c0b6135c7f425f1183a3fceb24822b35d208c
+            x-checker-data:
+              type: anitya
+              project-id: 8217
+              stable-only: true
+              versions:
+                '>': 2021.5.0
+              url-template: https://github.com/oneapi-src/oneTBB/archive/v$version/oneTBB-$version.tar.gz
+          - type: patch
+            # NOTE: according to makefile, mold requires https://github.com/oneapi-src/oneTBB/pull/824
+            path: tbb-retry-if-pthread_create-fails-with-eagain.patch
+        cleanup:
+          - '*'
+      - name: zlib-static
+        build-options: *musl-static-build-options
+        config-opts:
+          - --static
+        sources:
+          - type: archive
+            url: https://zlib.net/zlib-1.2.12.tar.gz
+            sha256: 91844808532e5ce316b3c010929493c0244f3d37593afd6de04f71821d5136d9
+            x-checker-data:
+              type: anitya
+              project-id: 5303
+              stable-only: true
+              url-template: https://zlib.net/zlib-$version.tar.gz
+        cleanup:
+          - '*'
