@@ -68,9 +68,9 @@ modules:
         url: http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=3d5db9ebe860
         sha256: 75d5d255a2a273b6e651f82eecfabf6cbcd8eaeae70e86b417384c8f4a58d8d3
       - type: file
-        dest: sources/binutils-2.35.2.tar.xz.tmp
-        url: https://ftp.gnu.org/gnu/binutils/binutils-2.35.2.tar.xz
-        sha256: dcd5b0416e7b0a9b24bed76cd8c6c132526805761863150a26d016415b8bdc7b
+        dest: sources/binutils-2.39.tar.xz.tmp
+        url: https://ftp.gnu.org/gnu/binutils/binutils-2.39.tar.xz
+        sha256: 645c25f563b8adc0a81dbd6a41cffbf4d37083a382e02d5d3df4f65c09516d00
       - type: file
         dest: sources/gcc-12.2.0.tar.xz.tmp
         url: https://ftp.gnu.org/gnu/gcc/gcc-12.2.0/gcc-12.2.0.tar.xz
@@ -100,6 +100,8 @@ modules:
       - type: patch
         path: musl-cross-make-add-binutils-2.35.2.patch
       - type: patch
+        path: musl-cross-make-add-binutils-2.39.patch
+      - type: patch
         path: musl-cross-make-add-gcc-12.2.0.patch
       - type: file
         # NOTE: sane default for dynamic linker location
@@ -124,6 +126,8 @@ modules:
     make-args:
       - DL_CMD=echo
       - COMMON_CONFIG += CC="x86_64-linux-musl-gcc -static --static" CXX="x86_64-linux-musl-g++ -static --static"
+      # broken with binutils 2.39 when statically linking
+      - BINUTILS_CONFIG += --disable-gprofng
     make-install-args:
       # workaround for strip failure: install to builddir and copy copy manually to install prefix
       - OUTPUT=${FLATPAK_BUILDER_BUILDDIR}/target

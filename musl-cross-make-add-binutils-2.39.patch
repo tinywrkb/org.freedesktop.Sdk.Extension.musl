@@ -1,0 +1,7 @@
+diff --git a/hashes/binutils-2.39.tar.xz.sha1 b/hashes/binutils-2.39.tar.xz.sha1
+new file mode 100644
+index 0000000..078fe65
+--- /dev/null
++++ b/hashes/binutils-2.39.tar.xz.sha1
+@@ -0,0 +1 @@
++f17653e7b1d1fa5242a408919845da23e8cc5141 binutils-2.39.tar.xz
