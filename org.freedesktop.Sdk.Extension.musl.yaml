@@ -257,3 +257,20 @@ modules:
               url-template: https://zlib.net/zlib-$version.tar.gz
         cleanup:
           - '*'
+
+  - name: packaging
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 enable.sh -t ${FLATPAK_DEST}/
+    sources:
+      - type: script
+        dest-filename: enable.sh
+        commands:
+          - |
+            SDKPATH=/usr/lib/sdk/musl
+            export PATH=${SDKPATH}/bin:$PATH
+            if [ -z "$LD_LIBRARY_PATH" ]; then
+              export LD_LIBRARY_PATH=${SDKPATH}/lib
+            else
+              export LD_LIBRARY_PATH+=:${SDKPATH}/lib
+            fi
