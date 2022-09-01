@@ -72,9 +72,9 @@ modules:
         url: https://ftp.gnu.org/gnu/binutils/binutils-2.35.2.tar.xz
         sha256: dcd5b0416e7b0a9b24bed76cd8c6c132526805761863150a26d016415b8bdc7b
       - type: file
-        dest: sources/gcc-11.2.0.tar.xz.tmp
-        url: https://ftp.gnu.org/gnu/gcc/gcc-11.2.0/gcc-11.2.0.tar.xz
-        sha256: d08edc536b54c372a1010ff6619dd274c0f1603aa49212ba20f7aa2cda36fa8b
+        dest: sources/gcc-12.2.0.tar.xz.tmp
+        url: https://ftp.gnu.org/gnu/gcc/gcc-12.2.0/gcc-12.2.0.tar.xz
+        sha256: e549cf9cf3594a00e27b6589d4322d70e0720cdd213f39beb4181e06926230ff
       - type: file
         dest: sources/gmp-6.1.2.tar.bz2.tmp
         url: https://ftp.gnu.org/gnu/gmp/gmp-6.1.2.tar.bz2
@@ -99,6 +99,8 @@ modules:
         path: config.mak
       - type: patch
         path: musl-cross-make-add-binutils-2.35.2.patch
+      - type: patch
+        path: musl-cross-make-add-gcc-12.2.0.patch
       - type: file
         # NOTE: sane default for dynamic linker location
         #   helps avoid issues with the dreadful autotools, and terriblly written makefiles, like:
@@ -107,6 +109,10 @@ modules:
         #   if packaged binaries are dynamically linked, then the libc.so should also be packaged, and the location of
         #   the dynamic linker should be overridden using the ld option --dynamic-linker.
         dest: patches/gcc-11.2.0
+        dest-filename: 0100-gcc-musl-ldso-path.patch
+        path: gcc-musl-ldso-path.patch
+      - type: file
+        dest: patches/gcc-12.2.0
         dest-filename: 0100-gcc-musl-ldso-path.patch
         path: gcc-musl-ldso-path.patch
     cleanup:
@@ -143,6 +149,8 @@ modules:
       - -DMOLD_USE_SYSTEM_TBB=ON
       - -DMOLD_USE_SYSTEM_MIMALLOC=ON
       - -DZLIB_INCLUDE_DIR=/usr/lib/sdk/musl/include # wrong detection of zlib.h adds -I/usr/include
+    post-install:
+      - ln -s mold ${FLATPAK_DEST}/bin/x86_64-linux-musl-ld.mold
     sources:
       - type: archive
         url: https://github.com/rui314/mold/archive/v1.4.1/mold-1.4.1.tar.gz
