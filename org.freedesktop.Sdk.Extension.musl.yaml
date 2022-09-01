@@ -16,6 +16,7 @@ build-options:
   prepend-pkg-config-path: /usr/lib/sdk/musl/lib/pkgconfig
   strip: true
 x-musl-shared-build-options: &musl-shared-build-options
+  ldflags: -Wl,-rpath=/usr/lib/sdk/musl/lib,-rpath=/usr/lib/sdk/musl/x86_64-linux-musl/lib
   env: &musl-toolchain-environment
     - CC=x86_64-linux-musl-gcc
     - CXX=x86_64-linux-musl-g++
@@ -131,18 +132,6 @@ modules:
     build-commands:
       - ln -s ../${FLATPAK_ARCH}-linux-musl/lib/libc.so ${FLATPAK_DEST}/bin/x86_64-linux-musl-ldd
 
-  - name: patchelf-static
-    build-options: *musl-static-build-options
-    sources:
-      - type: archive
-        url: https://github.com/NixOS/patchelf/archive/0.15.0.tar.gz
-        sha256: 5d1eda9bad4439bb9c0a87fcba198d7c0d372f361e77de41d68d6308062e5000
-        x-checker-data:
-          type: anitya
-          project-id: 2598
-          stable-only: true
-          url-template: https://github.com/NixOS/patchelf/archive/$version.tar.gz
-
   - name: mold-static
     build-options: *musl-shared-build-options
     buildsystem: cmake-ninja
@@ -154,11 +143,6 @@ modules:
       - -DMOLD_USE_SYSTEM_TBB=ON
       - -DMOLD_USE_SYSTEM_MIMALLOC=ON
       - -DZLIB_INCLUDE_DIR=/usr/lib/sdk/musl/include # wrong detection of zlib.h adds -I/usr/include
-    post-install:
-      # TODO: stripping after patchelf breaks executable
-     #- patchelf --add-rpath ${FLATPAK_DEST}/lib:${FLATPAK_DEST}/${FLATPAK_ARCH}-linux-musl/lib
-     #  ${FLATPAK_DEST}/{bin/mold,lib/mold/mold-wrapper.so}
-      - ln -s ../${FLATPAK_ARCH}-linux-musl/lib/libgcc_s.so.1 -t ${FLATPAK_DEST}/lib/
     sources:
       - type: archive
         url: https://github.com/rui314/mold/archive/v1.4.1/mold-1.4.1.tar.gz
