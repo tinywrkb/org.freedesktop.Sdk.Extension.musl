@@ -23,9 +23,9 @@ x-musl-shared-build-options: &musl-shared-build-options
     - CC=x86_64-linux-musl-gcc
     - CXX=x86_64-linux-musl-g++
 x-musl-static-build-options: &musl-static-build-options
-  cflags: -static -fPIC
-  cxxflags: -static -fPIC
-  ldflags: -static -fPIC
+  cflags: -static -static-pie -fPIC
+  cxxflags: -static -static-pie -fPIC
+  ldflags: -static -static-pie -fPIC
   env: *musl-toolchain-environment
 
 modules:
