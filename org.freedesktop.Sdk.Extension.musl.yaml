@@ -44,6 +44,9 @@ modules:
       - '*'
   - name: musl-shared
     build-options: &musl_build_opt
+      cflags: -fPIC
+      cxxflags: -fPIC
+      ldflags: -fPIC
       append-path: /usr/lib/sdk/musl/musl-shared/bin
 #     build-args:
 #       - --share=network
